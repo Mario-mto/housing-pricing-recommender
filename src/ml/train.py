@@ -7,82 +7,95 @@ import joblib
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.pipeline import Pipeline
 
-from .config import MODEL_DIR, MODEL_PATH, RANDOM_FOREST_PARAMS
+from xgboost import XGBRegressor
+
+from .config import MODEL_DIR, MODEL_PATH
 from .data_loader import load_data
 from .features import build_preprocessing_pipeline
+from .model_selection import optimize_random_forest, optimize_xgboost
 
 
-def train_model(test_size: float = 0.2, random_state: int = 42):
+def evaluate_model(y_test, y_pred):
+    mae = mean_absolute_error(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
+    rmse = np.sqrt(mse)
+    r2 = r2_score(y_test, y_pred)
+
+    print(f"MAE  : {mae:.2f}")
+    print(f"RMSE : {rmse:.2f}")
+    print(f"R²   : {r2:.3f}")
+
+    return mae, rmse, r2
+
+
+def train_model(use_grid=False, model_type="rf"):
     """
-    Entraîne un modèle de régression (RandomForest) pour prédire le prix.
-    - Split train/test
-    - Entraînement
-    - Évaluation (MAE, RMSE, R²)
-    - Sauvegarde du pipeline complet (preprocessing + modèle)
+    Entraîne un modèle ML avec ou sans GridSearch.
+    model_type : "rf" ou "xgb"
     """
-    # 1. Charger les données
+
+    # 1. Charger données
     X, y = load_data()
 
-    # 2. Split train/test
+    # 2. Split
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
-        test_size=test_size,
-        random_state=random_state
+        X, y, test_size=0.2, random_state=42
     )
 
     # 3. Pipeline de préprocessing
     preprocessor = build_preprocessing_pipeline()
 
-    # 4. Modèle
-    model = RandomForestRegressor(**RANDOM_FOREST_PARAMS)
+    # 4. Choix du modèle
+    if model_type == "rf":
+        model = RandomForestRegressor(random_state=42)
+        param_grid = optimize_random_forest() if use_grid else None
 
-    # 5. Pipeline complet (preprocessing + modèle)
-    clf = Pipeline(steps=[
+    elif model_type == "xgb":
+        model = XGBRegressor(
+            objective="reg:squarederror",
+            random_state=42,
+        )
+        param_grid = optimize_xgboost() if use_grid else None
+
+    else:
+        raise ValueError("model_type doit être 'rf' ou 'xgb'.")
+
+    # 5. Pipeline complet (preprocess + modèle)
+    pipeline = Pipeline(steps=[
         ("preprocessor", preprocessor),
         ("model", model),
     ])
 
-    # 6. Entraînement
-    clf.fit(X_train, y_train)
+    # 6. Si GridSearch
+    if use_grid:
+        print("🔍 Optimisation des hyperparamètres avec GridSearchCV...")
+        grid = GridSearchCV(
+            pipeline,
+            param_grid=param_grid,
+            cv=3,
+            n_jobs=-1,
+            verbose=1
+        )
+        grid.fit(X_train, y_train)
+        best_model = grid.best_estimator_
+        print("🔥 Meilleurs paramètres :", grid.best_params_)
+    else:
+        pipeline.fit(X_train, y_train)
+        best_model = pipeline
 
-    # 7. Évaluation
-    y_pred = clf.predict(X_test)
+    # 7. Prédictions
+    y_pred = best_model.predict(X_test)
 
-        # 7. Évaluation
-    y_pred = clf.predict(X_test)
+    # 8. Évaluer
+    mae, rmse, r2 = evaluate_model(y_test, y_pred)
 
-    print("Taille du jeu d'entraînement :", len(y_train))
-    print("Taille du jeu de test       :", len(y_test))
-
-    # Petit aperçu des vraies valeurs et des prédictions
-    print("\nAperçu y_test (vrais prix) :")
-    print(y_test[:10])
-    print("\nAperçu y_pred (prédits) :")
-    print(y_pred[:10])
-
-    mae = mean_absolute_error(y_test, y_pred)
-
-    # MSE (erreur quadratique moyenne)
-    mse = mean_squared_error(y_test, y_pred)
-
-    # RMSE = racine du MSE
-    rmse = np.sqrt(mse)
-
-    # Attention : R² peut être NaN si y_test est constant ou très peu de points
-    r2 = r2_score(y_test, y_pred)
-
-    print(f"\nMAE  (Mean Absolute Error): {mae:.2f}")
-    print(f"RMSE (Root Mean Squared Error): {rmse:.2f}")
-    print(f"R²   (Coefficient de détermination): {r2}")
-
-
-    # 8. Sauvegarde du modèle
+    # 9. Sauvegarde modèle
     os.makedirs(MODEL_DIR, exist_ok=True)
-    joblib.dump(clf, MODEL_PATH)
-    print(f"✅ Modèle sauvegardé dans: {MODEL_PATH}")
+    joblib.dump(best_model, MODEL_PATH)
+    print(f"✅ Modèle sauvegardé dans : {MODEL_PATH}")
 
     return {
         "mae": mae,
@@ -92,6 +105,11 @@ def train_model(test_size: float = 0.2, random_state: int = 42):
 
 
 if __name__ == "__main__":
-    # Permet de lancer l'entraînement avec:
-    # python -m src.ml.train
-    train_model()
+    # Exemple 1 : RandomForest normal
+    # train_model(use_grid=False, model_type="rf")
+
+    # Exemple 2 : RandomForest avec GridSearch
+    # train_model(use_grid=True, model_type="rf")
+
+    # Exemple 3 : XGBoost avec GridSearch (recommandé)
+    train_model(use_grid=True, model_type="xgb")
