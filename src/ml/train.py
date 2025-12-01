@@ -51,13 +51,33 @@ def train_model(test_size: float = 0.2, random_state: int = 42):
     # 7. Évaluation
     y_pred = clf.predict(X_test)
 
+        # 7. Évaluation
+    y_pred = clf.predict(X_test)
+
+    print("Taille du jeu d'entraînement :", len(y_train))
+    print("Taille du jeu de test       :", len(y_test))
+
+    # Petit aperçu des vraies valeurs et des prédictions
+    print("\nAperçu y_test (vrais prix) :")
+    print(y_test[:10])
+    print("\nAperçu y_pred (prédits) :")
+    print(y_pred[:10])
+
     mae = mean_absolute_error(y_test, y_pred)
-    rmse = mean_squared_error(y_test, y_pred, squared=False)
+
+    # MSE (erreur quadratique moyenne)
+    mse = mean_squared_error(y_test, y_pred)
+
+    # RMSE = racine du MSE
+    rmse = np.sqrt(mse)
+
+    # Attention : R² peut être NaN si y_test est constant ou très peu de points
     r2 = r2_score(y_test, y_pred)
 
-    print(f"MAE  (Mean Absolute Error): {mae:.2f}")
+    print(f"\nMAE  (Mean Absolute Error): {mae:.2f}")
     print(f"RMSE (Root Mean Squared Error): {rmse:.2f}")
-    print(f"R²   (Coefficient de détermination): {r2:.3f}")
+    print(f"R²   (Coefficient de détermination): {r2}")
+
 
     # 8. Sauvegarde du modèle
     os.makedirs(MODEL_DIR, exist_ok=True)
