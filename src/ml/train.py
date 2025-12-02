@@ -4,8 +4,6 @@ import os
 from pathlib import Path
 
 import joblib
-from sklearn.compose import TransformedTargetRegressor
-import numpy as np
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -56,16 +54,9 @@ def train_model(use_grid=False, model_type="rf"):
         param_grid = optimize_random_forest() if use_grid else None
 
     elif model_type == "xgb":
-        base_model = XGBRegressor(
-        objective="reg:squarederror",
-        random_state=42,
-        n_jobs=-1)
-
-# On enveloppe le modèle pour qu'il travaille sur log(price)
-        model = TransformedTargetRegressor(
-        regressor=base_model,
-        func=np.log1p,      # y -> log(1 + y)
-        inverse_func=np.expm1  # y_pred -> exp(y) - 1
+        model = XGBRegressor(
+            objective="reg:squarederror",
+            random_state=42,
         )
         param_grid = optimize_xgboost() if use_grid else None
 
@@ -82,11 +73,11 @@ def train_model(use_grid=False, model_type="rf"):
     if use_grid:
         print("🔍 Optimisation des hyperparamètres avec GridSearchCV...")
         grid = GridSearchCV(
-        pipeline,
-        param_grid=param_grid,
-        cv=5,          # au lieu de 3
-        n_jobs=-1,
-        verbose=1
+            pipeline,
+            param_grid=param_grid,
+            cv=3,
+            n_jobs=-1,
+            verbose=1
         )
         grid.fit(X_train, y_train)
         best_model = grid.best_estimator_
