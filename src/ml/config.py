@@ -19,14 +19,17 @@ NUMERIC_FEATURES = [
     "rooms",
     "bathrooms",
     "floor",
-    "building_age"
+    "building_age",
+    "distance_metro",
+    "price_per_m2_neighbourhood",
 ]
 
 CATEGORICAL_FEATURES = [
     "neighbourhood",
     "city",
     "furnished",
-    "has_elevator"
+    "has_elevator",
+    "season",   # ex: 'winter', 'summer'
 ]
 
 # Paramètres de base du modèle (RandomForest pour commencer)
