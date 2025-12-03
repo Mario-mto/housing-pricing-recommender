@@ -9,6 +9,13 @@ import pandas as pd
 from src.ml.predict import load_trained_model
 
 # -----------------------------
+# 0. Constante de dispersion
+# -----------------------------
+# On utilise le RMSE observé (~80) comme "rayon" de la fourchette de prix.
+ESTIMATED_RMSE = 80.0
+
+
+# -----------------------------
 # 1. Création de l'app FastAPI
 # -----------------------------
 app = FastAPI(
@@ -43,10 +50,11 @@ class HousingInput(BaseModel):
 
 class PricePrediction(BaseModel):
     """
-    Réponse de l'API : prix prédit (pour l'instant un seul nombre).
-    Tu pourras ajouter low/high range plus tard.
+    Réponse de l'API : prix prédit + fourchette estimée.
     """
     predicted_price: float
+    low_range: float
+    high_range: float
 
 
 # ----------------------------------------
@@ -77,7 +85,7 @@ def predict_price_endpoint(housing: HousingInput):
     - Reçoit un logement (HousingInput)
     - Transforme en DataFrame
     - Passe dans le pipeline ML
-    - Retourne le prix prédit
+    - Retourne le prix prédit + une fourchette
     """
 
     # 1) On transforme l'objet Pydantic en dict
@@ -87,7 +95,15 @@ def predict_price_endpoint(housing: HousingInput):
     df = pd.DataFrame([data_dict])
 
     # 3) On appelle le pipeline ML
-    price_pred = model.predict(df)[0]
+    price_pred = float(model.predict(df)[0])
 
-    # 4) On retourne la réponse avec le schéma Pydantic
-    return PricePrediction(predicted_price=float(price_pred))
+    # 4) On calcule une fourchette autour du prix
+    low = max(price_pred - ESTIMATED_RMSE, 0.0)  # prix minimal plausible
+    high = price_pred + ESTIMATED_RMSE
+
+    # 5) On retourne la réponse avec le schéma Pydantic
+    return PricePrediction(
+        predicted_price=price_pred,
+        low_range=low,
+        high_range=high,
+    )
