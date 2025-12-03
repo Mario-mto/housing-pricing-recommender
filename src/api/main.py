@@ -17,10 +17,12 @@ from src.ml.predict import load_trained_model
 ESTIMATED_RMSE = 80.0
 
 # -----------------------------
-# 0. Logging
+# 0. Logging (JSON Format)
 # -----------------------------
+import logging
+from pathlib import Path
+from pythonjsonlogger import jsonlogger
 
-# Dossier des logs à la racine du projet
 ROOT_DIR = Path(__file__).resolve().parents[2]
 LOG_DIR = ROOT_DIR / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -30,14 +32,16 @@ LOG_FILE = LOG_DIR / "api.log"
 logger = logging.getLogger("pricing_api")
 logger.setLevel(logging.INFO)
 
-# Éviter d'ajouter plusieurs handlers si l'app est rechargée (uvicorn --reload)
-if not logger.handlers:
-    file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
-    formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(message)s"
-    )
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+# 🔥 On supprime tous les anciens handlers (texte)
+logger.handlers.clear()
+
+# On crée un handler unique avec format JSON
+file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+formatter = jsonlogger.JsonFormatter("%(asctime)s %(levelname)s %(message)s")
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+
 
 # -----------------------------
 # 1. Création de l'app FastAPI
@@ -99,7 +103,7 @@ def health_check():
     """
     Endpoint de santé très simple pour vérifier que l'API tourne.
     """
-    logger.info("Health check called")
+    logger.info({"event": "health_check"})
     return {"status": "ok"}
 
 
@@ -115,7 +119,11 @@ def predict_price_endpoint(housing: HousingInput):
 
     # 1) On transforme l'objet Pydantic en dict
     data_dict = housing.dict()
-    logger.info(f"New prediction request: {data_dict}")
+    logger.info({
+    "event": "prediction_request",
+    "input": data_dict
+    })
+
 
     # 2) On crée un DataFrame avec une seule ligne
     df = pd.DataFrame([data_dict])
@@ -131,10 +139,15 @@ def predict_price_endpoint(housing: HousingInput):
     low = max(price_pred - ESTIMATED_RMSE, 0.0)  # prix minimal plausible
     high = price_pred + ESTIMATED_RMSE
 
-    logger.info(
-        f"Prediction result: price={price_pred:.2f}, "
-        f"low={low:.2f}, high={high:.2f}"
-    )
+    logger.info({
+    "event": "prediction_result",
+    "output": {
+        "predicted_price": price_pred,
+        "low_range": low,
+        "high_range": high
+        }
+    })
+
 
     # 5) On retourne la réponse avec le schéma Pydantic
     return PricePrediction(

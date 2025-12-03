@@ -1,4 +1,3 @@
-2025-12-03 11:31:12,376 - INFO - Health check called
-2025-12-03 11:31:14,901 - INFO - Health check called
-2025-12-03 11:31:37,054 - INFO - New prediction request: {'surface': 45.0, 'rooms': 2, 'bathrooms': 1, 'floor': 3, 'building_age': 15, 'neighbourhood': 'Plateau', 'city': 'Montreal', 'furnished': 'yes', 'has_elevator': 'no'}
-2025-12-03 11:31:37,111 - INFO - Prediction result: price=1124.87, low=1044.87, high=1204.87
+{"asctime": "2025-12-03 11:59:37,886", "levelname": "INFO", "message": "", "event": "health_check"}
+{"asctime": "2025-12-03 12:04:31,916", "levelname": "INFO", "message": "", "event": "prediction_request", "input": {"surface": 45.0, "rooms": 2, "bathrooms": 1, "floor": 3, "building_age": 15, "neighbourhood": "Plateau", "city": "Montreal", "furnished": "yes", "has_elevator": "no"}}
+{"asctime": "2025-12-03 12:04:31,986", "levelname": "INFO", "message": "", "event": "prediction_result", "output": {"predicted_price": 1124.8681640625, "low_range": 1044.8681640625, "high_range": 1204.8681640625}}
